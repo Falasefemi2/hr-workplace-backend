@@ -37,7 +37,17 @@ const HttpServerLayer = HttpRouter.serve(AllRoutes, {
       HttpMiddleware.cors({
         allowedOrigins: ["http://localhost:3001"],
         allowedMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: [
+          "Content-Type",
+          "Authorization",
+          "traceparent",
+          "tracestate",
+          "b3",
+          "x-b3-traceid",
+          "x-b3-spanid",
+          "x-b3-sampled",
+          "baggage",
+        ],
         credentials: true,
       }),
     ),
