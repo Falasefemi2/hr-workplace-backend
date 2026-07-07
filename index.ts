@@ -6,13 +6,16 @@ import { Api } from "./src/api"
 import { PgDatabaseLive } from "./src/db"
 import { DepartmentService } from "./src/domain/department-service"
 import { EmployeeService } from "./src/domain/employee-service"
+import { PayGroupService } from "./src/domain/pay-group-service"
 import { AuthApiHandlers } from "./src/http/auth-api-handlers"
 import { AuthorizationLayer } from "./src/http/auth-middleware"
 import { DepartmentsApiHandlers, EmployeesApiHandlers } from "./src/http/employees-api-handlers"
 import { onboardingTemplateRoute } from "./src/http/onboarding-template-route"
+import { PayGroupsApiHandlers } from "./src/http/pay-groups-api-handlers"
 import { DepartmentRepository } from "./src/repositories/department-repository"
 import { EmployeeRepository } from "./src/repositories/employee-repository"
 import { OrganizationRepository } from "./src/repositories/organization-repository"
+import { PayGroupRepository } from "./src/repositories/pay-group-repository"
 import { UserRepository } from "./src/repositories/user-repository"
 import { AppLogger } from "./src/services/app-logger"
 import { EmailService } from "./src/services/email-service"
@@ -30,6 +33,7 @@ const ServicesLive = Layer.mergeAll(
   PasswordService.layer,
   EmployeeService.layer,
   DepartmentService.layer,
+  PayGroupService.layer,
 ).pipe(Layer.provide(InfraLive))
 
 const RepositoriesLive = Layer.mergeAll(
@@ -37,12 +41,14 @@ const RepositoriesLive = Layer.mergeAll(
   OrganizationRepository.layer,
   DepartmentRepository.layer,
   EmployeeRepository.layer,
+  PayGroupRepository.layer,
 ).pipe(Layer.provide(InfraLive))
 
 const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
   Layer.provide(AuthApiHandlers),
   Layer.provide(DepartmentsApiHandlers),
   Layer.provide(EmployeesApiHandlers),
+  Layer.provide(PayGroupsApiHandlers),
   Layer.provide(AuthorizationLayer),
 )
 

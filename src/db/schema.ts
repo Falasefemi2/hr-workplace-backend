@@ -1,5 +1,16 @@
 import { defineRelations } from "drizzle-orm"
-import { index, numeric, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core"
+import {
+  boolean,
+  index,
+  numeric,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+  varchar,
+} from "drizzle-orm/pg-core"
 
 export const orgSizeEnum = pgEnum("org_size", ["1-10", "11-50", "51-200", "201-500", "500+"])
 
@@ -145,13 +156,11 @@ export const employees = pgTable(
     invitedAt: timestamp("invited_at", { withTimezone: true }).defaultNow().notNull(),
     activatedAt: timestamp("activated_at", { withTimezone: true }),
     deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+    payGroupId: uuid("pay_group_id").references(() => payGroups.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    // unique per ORG, not global — same email can be an employee under different
-    // organizations before either invite is accepted. Diverges deliberately from
-    // users.email (global unique, since that's the login identity once activated).
     uniqueIndex("employees_org_email_unique_idx").on(t.organizationId, t.email),
     index("employees_org_idx").on(t.organizationId),
     index("employees_department_idx").on(t.departmentId),
@@ -173,6 +182,31 @@ export const employeeInvitationTokens = pgTable(
   (t) => [index("eit_employee_idx").on(t.employeeId)],
 )
 
+export const payGroups = pgTable(
+  "pay_groups",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    applyTaxSettings: boolean("apply_tax_settings").notNull().default(true),
+    applyPensionSettings: boolean("apply_pension_settings").notNull().default(true),
+    applyNhfSettings: boolean("apply_nhf_settings").notNull().default(true),
+    applyNsitfSettings: boolean("apply_nsitf_settings").notNull().default(true),
+    applySalaryBreakdown: boolean("apply_salary_breakdown").notNull().default(true),
+    enableThirteenthMonthBonus: boolean("enable_thirteenth_month_bonus").notNull().default(false),
+    applyThirteenthMonthBonusPercentage: boolean("apply_thirteenth_month_bonus_percentage").notNull().default(false),
+    thirteenthMonthBonusPercentage: numeric("thirteenth_month_bonus_percentage", { precision: 5, scale: 2 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("pay_groups_org_name_unique_idx").on(t.organizationId, t.name),
+    index("pay_groups_org_idx").on(t.organizationId),
+  ],
+)
+
 export const relations = defineRelations(
   {
     organizations,
@@ -182,6 +216,7 @@ export const relations = defineRelations(
     passwordResetTokens,
     departments,
     employees,
+    payGroups,
   },
   (r) => ({
     organizations: {
@@ -222,6 +257,11 @@ export const relations = defineRelations(
       organization: r.one.organizations({ from: r.employees.organizationId, to: r.organizations.id }),
       department: r.one.departments({ from: r.employees.departmentId, to: r.departments.id }),
       user: r.one.users({ from: r.employees.userId, to: r.users.id }),
+      payGroup: r.one.payGroups({ from: r.employees.payGroupId, to: r.payGroups.id }), // <-- add this
+    },
+    payGroups: {
+      organization: r.one.organizations({ from: r.payGroups.organizationId, to: r.organizations.id }),
+      employees: r.many.employees(),
     },
   }),
 )
@@ -248,3 +288,6 @@ export type Employee = typeof employees.$inferSelect
 export type NewEmployee = typeof employees.$inferInsert
 
 export type EmployeeInvitationToken = typeof employeeInvitationTokens.$inferSelect
+
+export type PayGroup = typeof payGroups.$inferSelect
+export type NewPayGroup = typeof payGroups.$inferInsert

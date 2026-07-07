@@ -78,6 +78,18 @@ export class DepartmentNameTakenError extends Schema.TaggedErrorClass<Department
   { httpApiStatus: 409 },
 ) {}
 
+export class PayGroupNotFoundError extends Schema.TaggedErrorClass<PayGroupNotFoundError>()(
+  "PayGroupNotFoundError",
+  { payGroupId: Schema.String },
+  { httpApiStatus: 404 },
+) {}
+
+export class PayGroupNameTakenError extends Schema.TaggedErrorClass<PayGroupNameTakenError>()(
+  "PayGroupNameTakenError",
+  { name: Schema.String },
+  { httpApiStatus: 409 },
+) {}
+
 export type AuthError =
   | InvalidCredentialsError
   | EmailAlreadyExistsError
