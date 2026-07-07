@@ -178,7 +178,65 @@ export class AuthService extends Context.Service<AuthService>()("api/domain/auth
           )
       })
 
-    return { register, login, refresh, verifyEmail, signOut, resendVerification } as const
+    const forgotPassword = (emailAddress: string) =>
+      Effect.gen(function* () {
+        const user = yield* userRepo.findByEmail(emailAddress.toLowerCase())
+        if (!user) return
+
+        const { token, tokenHash } = yield* tokens.generateRefreshToken()
+        const oneHour = 60 * 60 * 1000
+        yield* userRepo.storePasswordResetToken({
+          userId: user.id,
+          tokenHash,
+          expiresAt: new Date(Date.now() + oneHour),
+        })
+
+        yield* email
+          .sendPasswordResetEmail({ to: user.email, fullName: user.fullName, token })
+          .pipe(
+            Effect.catchTag("EmailError", (e) =>
+              logger.error("Forgot password email failed", { userId: user.id, error: e.message }),
+            ),
+          )
+      })
+
+    const resetPassword = (params: { token: string; password: string }) =>
+      Effect.gen(function* () {
+        const tokenHash = yield* tokens.hashRefreshToken(params.token)
+        const stored = yield* userRepo.findPasswordResetTokenByHash(tokenHash)
+
+        if (!stored || stored.consumedAt || stored.expiresAt < new Date()) {
+          return yield* new TokenInvalidError({ reason: "invalid_or_expired" })
+        }
+
+        const user = yield* userRepo.findById(stored.userId).pipe(Effect.orDie)
+
+        const passwordHash = yield* password.hash(params.password).pipe(Effect.orDie)
+        yield* userRepo.updatePassword(stored.userId, passwordHash)
+        yield* userRepo.consumePasswordResetToken(stored.id)
+        yield* userRepo.revokeAllUserRefreshTokens(stored.userId)
+
+        yield* email
+          .sendPasswordChangedEmail({ to: user.email, fullName: user.fullName })
+          .pipe(
+            Effect.catchTag("EmailError", (e) =>
+              logger.error("Password changed confirmation email failed", { userId: user.id, error: e.message }),
+            ),
+          )
+
+        yield* logger.info("Password reset successful", { userId: stored.userId })
+      })
+
+    return {
+      register,
+      login,
+      refresh,
+      verifyEmail,
+      signOut,
+      resendVerification,
+      forgotPassword,
+      resetPassword,
+    } as const
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

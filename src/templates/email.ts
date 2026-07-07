@@ -44,6 +44,27 @@ export const verificationEmailTemplate = (params: { fullName: string; verifyUrl:
     <p style="word-break:break-all;color:#5B4FE9;font-size:13px;">${params.verifyUrl}</p>
   `)
 
+export const inviteVerificationEmailTemplate = (params: { fullName: string; inviteUrl: string }) =>
+  layout(`
+    <h2 style="margin:0 0 20px;color:#222;font-size:28px;">You’re invited to join hr-workplace</h2>
+    <p style="color:#555;font-size:16px;line-height:1.7;margin-bottom:12px;">
+      Hi ${escapeHtml(params.fullName)}, your organization has invited you to join the workspace.
+    </p>
+    <p style="color:#555;font-size:16px;line-height:1.7;margin-bottom:24px;">
+      Confirm your email and complete your onboarding in just one click.
+    </p>
+    <div style="text-align:center;margin:40px 0;">
+      <a href="${params.inviteUrl}" style="background:#2F855A;color:white;text-decoration:none;padding:16px 36px;border-radius:10px;display:inline-block;font-size:16px;font-weight:600;">
+        Accept Invitation
+      </a>
+    </div>
+    <div style="background:#eef8f2;border-left:4px solid #2F855A;padding:16px;border-radius:8px;margin:30px 0;">
+      <p style="margin:0;color:#444;font-size:14px;">This invitation link expires in <strong>7 days</strong>.</p>
+    </div>
+    <p style="color:#666;font-size:14px;line-height:1.7;">If the button doesn't work, paste this URL:</p>
+    <p style="word-break:break-all;color:#2F855A;font-size:13px;">${params.inviteUrl}</p>
+  `)
+
 export const passwordResetEmailTemplate = (params: { fullName: string; resetUrl: string }) =>
   layout(`
     <h2 style="margin:0 0 20px;color:#222;font-size:28px;">Reset your password</h2>
@@ -57,5 +78,16 @@ export const passwordResetEmailTemplate = (params: { fullName: string; resetUrl:
     </div>
     <div style="background:#fff5f5;border-left:4px solid #E05252;padding:16px;border-radius:8px;margin:30px 0;">
       <p style="margin:0;color:#444;font-size:14px;">This link expires in <strong>1 hour</strong>. If you didn't request this, ignore this email — your password won't change.</p>
+    </div>
+  `)
+
+export const passwordChangedEmailTemplate = (params: { fullName: string }) =>
+  layout(`
+    <h2 style="margin:0 0 20px;color:#222;font-size:28px;">Password changed successfully</h2>
+    <p style="color:#555;font-size:16px;line-height:1.7;margin-bottom:24px;">
+      Hi ${escapeHtml(params.fullName)}, your password has been successfully updated.
+    </p>
+    <div style="background:#fff5f5;border-left:4px solid #E05252;padding:16px;border-radius:8px;margin:30px 0;">
+      <p style="margin:0;color:#444;font-size:14px;">If you did not request this change, please contact support immediately to secure your account.</p>
     </div>
   `)
