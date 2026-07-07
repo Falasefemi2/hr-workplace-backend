@@ -59,6 +59,20 @@ export const AuthApiHandlers = HttpApiBuilder.group(
           return yield* auth.resendVerification(payload.email).pipe(Effect.catchTag("DbError", Effect.orDie))
         }),
       )
+      .handle("forgotPassword", ({ payload }) =>
+        Effect.gen(function* () {
+          const ip = yield* clientKey
+          yield* rateLimiter.check("passwordReset", ip)
+          return yield* auth.forgotPassword(payload.email).pipe(Effect.catchTag("DbError", Effect.orDie))
+        }),
+      )
+      .handle("resetPassword", ({ payload }) =>
+        Effect.gen(function* () {
+          const ip = yield* clientKey
+          yield* rateLimiter.check("passwordReset", ip)
+          return yield* auth.resetPassword(payload).pipe(Effect.catchTag("DbError", Effect.orDie))
+        }),
+      )
   }),
 ).pipe(
   Layer.provide(AuthService.layer),

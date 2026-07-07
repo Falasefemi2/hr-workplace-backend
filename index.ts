@@ -4,7 +4,14 @@ import { HttpMiddleware, HttpRouter } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiScalar } from "effect/unstable/httpapi"
 import { Api } from "./src/api"
 import { PgDatabaseLive } from "./src/db"
+import { DepartmentService } from "./src/domain/department-service"
+import { EmployeeService } from "./src/domain/employee-service"
 import { AuthApiHandlers } from "./src/http/auth-api-handlers"
+import { AuthorizationLayer } from "./src/http/auth-middleware"
+import { DepartmentsApiHandlers, EmployeesApiHandlers } from "./src/http/employees-api-handlers"
+import { onboardingTemplateRoute } from "./src/http/onboarding-template-route"
+import { DepartmentRepository } from "./src/repositories/department-repository"
+import { EmployeeRepository } from "./src/repositories/employee-repository"
 import { OrganizationRepository } from "./src/repositories/organization-repository"
 import { UserRepository } from "./src/repositories/user-repository"
 import { AppLogger } from "./src/services/app-logger"
@@ -17,19 +24,37 @@ import { TokenService } from "./src/services/token-service"
 
 const InfraLive = Layer.mergeAll(PgDatabaseLive, SecretsService.layer, AppLogger.layer)
 
-const ServicesLive = Layer.mergeAll(TokenService.layer, EmailService.layer, PasswordService.layer).pipe(
-  Layer.provide(InfraLive),
-)
+const ServicesLive = Layer.mergeAll(
+  TokenService.layer,
+  EmailService.layer,
+  PasswordService.layer,
+  EmployeeService.layer,
+  DepartmentService.layer,
+).pipe(Layer.provide(InfraLive))
 
-const RepositoriesLive = Layer.mergeAll(UserRepository.layer, OrganizationRepository.layer).pipe(
-  Layer.provide(InfraLive),
-)
+const RepositoriesLive = Layer.mergeAll(
+  UserRepository.layer,
+  OrganizationRepository.layer,
+  DepartmentRepository.layer,
+  EmployeeRepository.layer,
+).pipe(Layer.provide(InfraLive))
 
-const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(Layer.provide(AuthApiHandlers))
+const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
+  Layer.provide(AuthApiHandlers),
+  Layer.provide(DepartmentsApiHandlers),
+  Layer.provide(EmployeesApiHandlers),
+  Layer.provide(AuthorizationLayer),
+)
 
 const DocsRoute = HttpApiScalar.layer(Api, { path: "/docs" })
 
-const AllRoutes = Layer.mergeAll(ApiRoutes, DocsRoute)
+const OnboardingLayer = HttpRouter.addAll([onboardingTemplateRoute])
+
+const AllRoutes = Layer.mergeAll(ApiRoutes as any, DocsRoute as any, OnboardingLayer as any) as unknown as Layer.Layer<
+  never,
+  never,
+  any
+>
 
 const HttpServerLayer = HttpRouter.serve(AllRoutes, {
   middleware: (app) =>
@@ -61,4 +86,4 @@ const AppLayer = HttpServerLayer.pipe(
   Layer.provide(LoggerLayer),
 )
 
-BunRuntime.runMain(Layer.launch(AppLayer))
+BunRuntime.runMain(Layer.launch(AppLayer) as any)

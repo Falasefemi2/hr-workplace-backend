@@ -3,7 +3,7 @@ import * as Context from "effect/Context"
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import { PgDatabase } from "../db"
-import { emailVerificationTokens, type NewUser, refreshTokens, users } from "../db/schema"
+import { emailVerificationTokens, type NewUser, passwordResetTokens, refreshTokens, users } from "../db/schema"
 import { DbError, EmailAlreadyExistsError, UserNotFoundError } from "../errors"
 
 const PG_UNIQUE_VIOLATION = "23505"
@@ -102,6 +102,36 @@ export class UserRepository extends Context.Service<UserRepository>()("hr-workpl
         .where(eq(emailVerificationTokens.id, id))
         .pipe(Effect.asVoid, Effect.mapError(toDbError))
 
+    const storePasswordResetToken = (params: { userId: string; tokenHash: string; expiresAt: Date }) =>
+      db.insert(passwordResetTokens).values(params).pipe(Effect.asVoid, Effect.mapError(toDbError))
+
+    const findPasswordResetTokenByHash = (tokenHash: string) =>
+      db
+        .select()
+        .from(passwordResetTokens)
+        .where(eq(passwordResetTokens.tokenHash, tokenHash))
+        .pipe(
+          Effect.map((rows) => rows[0]),
+          Effect.mapError(toDbError),
+        )
+
+    const consumePasswordResetToken = (id: string) =>
+      db
+        .update(passwordResetTokens)
+        .set({ consumedAt: new Date() })
+        .where(eq(passwordResetTokens.id, id))
+        .pipe(Effect.asVoid, Effect.mapError(toDbError))
+
+    const updatePassword = (userId: string, passwordHash: string) =>
+      db.update(users).set({ passwordHash }).where(eq(users.id, userId)).pipe(Effect.asVoid, Effect.mapError(toDbError))
+
+    const revokeAllUserRefreshTokens = (userId: string) =>
+      db
+        .update(refreshTokens)
+        .set({ revokedAt: new Date() })
+        .where(eq(refreshTokens.userId, userId))
+        .pipe(Effect.asVoid, Effect.mapError(toDbError))
+
     return {
       create,
       findByEmail,
@@ -113,6 +143,11 @@ export class UserRepository extends Context.Service<UserRepository>()("hr-workpl
       storeEmailVerificationToken,
       findEmailVerificationTokenByHash,
       consumeEmailVerificationToken,
+      storePasswordResetToken,
+      findPasswordResetTokenByHash,
+      consumePasswordResetToken,
+      updatePassword,
+      revokeAllUserRefreshTokens,
     } as const
   }),
 }) {

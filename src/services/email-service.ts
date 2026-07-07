@@ -4,7 +4,12 @@ import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
 import * as Schedule from "effect/Schedule"
 import * as Schema from "effect/Schema"
-import { passwordResetEmailTemplate, verificationEmailTemplate } from "../templates/email"
+import {
+  inviteVerificationEmailTemplate,
+  passwordChangedEmailTemplate,
+  passwordResetEmailTemplate,
+  verificationEmailTemplate,
+} from "../templates/email"
 import { SecretsService } from "./secrets-service"
 
 export class EmailError extends Schema.TaggedErrorClass<EmailError>()("EmailError", {
@@ -14,7 +19,13 @@ export class EmailError extends Schema.TaggedErrorClass<EmailError>()("EmailErro
 
 interface EmailServiceShape {
   sendVerificationEmail: (params: { to: string; fullName: string; token: string }) => Effect.Effect<void, EmailError>
+  sendEmployeeInvitationEmail: (params: {
+    to: string
+    fullName: string
+    token: string
+  }) => Effect.Effect<void, EmailError>
   sendPasswordResetEmail: (params: { to: string; fullName: string; token: string }) => Effect.Effect<void, EmailError>
+  sendPasswordChangedEmail: (params: { to: string; fullName: string }) => Effect.Effect<void, EmailError>
 }
 
 export class EmailService extends Context.Service<EmailService, EmailServiceShape>()("hr-workplace/EmailService") {
@@ -68,6 +79,19 @@ export class EmailService extends Context.Service<EmailService, EmailServiceShap
         }),
       )
 
+      const sendEmployeeInvitationEmail: EmailServiceShape["sendEmployeeInvitationEmail"] = Effect.fn(
+        "EmailService.sendEmployeeInvitationEmail",
+      )((params) =>
+        send({
+          to: params.to,
+          subject: "You’re invited to join hr-workplace",
+          html: inviteVerificationEmailTemplate({
+            fullName: params.fullName,
+            inviteUrl: `${frontendUrl}/accept-invite?token=${params.token}`,
+          }),
+        }),
+      )
+
       const sendPasswordResetEmail: EmailServiceShape["sendPasswordResetEmail"] = Effect.fn(
         "EmailService.sendPasswordResetEmail",
       )((params) =>
@@ -81,9 +105,23 @@ export class EmailService extends Context.Service<EmailService, EmailServiceShap
         }),
       )
 
+      const sendPasswordChangedEmail: EmailServiceShape["sendPasswordChangedEmail"] = Effect.fn(
+        "EmailService.sendPasswordChangedEmail",
+      )((params) =>
+        send({
+          to: params.to,
+          subject: "Your hr-workplace password was updated",
+          html: passwordChangedEmailTemplate({
+            fullName: params.fullName,
+          }),
+        }),
+      )
+
       return {
         sendVerificationEmail,
+        sendEmployeeInvitationEmail,
         sendPasswordResetEmail,
+        sendPasswordChangedEmail,
       }
     }),
   )

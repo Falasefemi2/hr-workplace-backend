@@ -93,4 +93,21 @@ export class AuthApiGroup extends HttpApiGroup.make("auth")
       success: Schema.Void,
       error: [RateLimitExceededError],
     }),
+  )
+  .add(
+    HttpApiEndpoint.post("forgotPassword", "/auth/forgot-password", {
+      payload: Schema.Struct({ email: Schema.String.pipe(Schema.check(Schema.isPattern(/^\S+@\S+\.\S+$/))) }),
+      success: Schema.Void,
+      error: [RateLimitExceededError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("resetPassword", "/auth/reset-password", {
+      payload: Schema.Struct({
+        token: Schema.String,
+        password: PasswordSchema,
+      }),
+      success: Schema.Void,
+      error: [TokenInvalidError, RateLimitExceededError],
+    }),
   ) {}

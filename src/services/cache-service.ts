@@ -15,6 +15,8 @@ interface CacheServiceShape {
   getOrganization: (key: string, lookup: () => Effect.Effect<Organization, never>) => Effect.Effect<Organization>
   invalidateUser: (userId: string) => Effect.Effect<void>
   invalidateOrganization: (orgId: string) => Effect.Effect<void>
+  tryGetUser: (key: string) => Effect.Effect<User | null>
+  setUser: (key: string, value: User) => Effect.Effect<void>
 }
 
 export class CacheService extends Context.Service<CacheService, CacheServiceShape>()("hr-workplace/CacheService") {}
@@ -80,11 +82,22 @@ export const CacheLive = Layer.effect(
         yield* Effect.logDebug("Cache invalidated: organization", { orgId })
       })
 
+    const tryGetUser: CacheServiceShape["tryGetUser"] = (key) =>
+      Cache.get(userCache, key).pipe(
+        Effect.catchDefect(() => Effect.succeed(null)),
+        Effect.option,
+        Effect.map((opt) => (opt._tag === "Some" ? opt.value : null)),
+      )
+
+    const setUser: CacheServiceShape["setUser"] = (key, value) => Cache.set(userCache, key, value)
+
     return {
       getUser,
       getOrganization,
       invalidateUser,
       invalidateOrganization,
+      tryGetUser,
+      setUser,
     }
   }),
 )
