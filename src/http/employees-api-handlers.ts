@@ -1,6 +1,8 @@
 import * as Effect from "effect/Effect"
 import * as Layer from "effect/Layer"
+import { HttpRouter, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
+import * as XLSX from "xlsx"
 import { Api } from "../api"
 import { PgDatabaseLive } from "../db"
 import { DepartmentService } from "../domain/department-service"
@@ -56,6 +58,17 @@ export const DepartmentsApiHandlers = HttpApiBuilder.group(Api, "departments", (
   Layer.provide(PgDatabaseLive),
 )
 
+const TEMPLATE_HEADERS = [
+  "First name",
+  "Last name",
+  "Email",
+  "Gender (male/female/other/prefer_not_to_say)",
+  "Country (2-letter code)",
+  "Phone number",
+  "Department",
+  "Monthly gross",
+]
+
 export const EmployeesApiHandlers = HttpApiBuilder.group(Api, "employees", (handlers) =>
   Effect.gen(function* () {
     const onboarding = yield* EmployeeOnboardingService
@@ -79,6 +92,20 @@ export const EmployeesApiHandlers = HttpApiBuilder.group(Api, "employees", (hand
             departmentId: params.departmentId,
             page: params.page ? Number(params.page) : undefined,
             limit: params.limit ? Number(params.limit) : undefined,
+          })
+        }),
+      )
+
+      .handle("onboardingTemplate", () =>
+        Effect.gen(function* () {
+          yield* requireRole("owner", "admin", "hr_manager") // or CurrentUser if unrestricted
+          const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS])
+          const wb = XLSX.utils.book_new()
+          XLSX.utils.book_append_sheet(wb, ws, "Employees")
+          const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" })
+          return HttpServerResponse.uint8Array(buffer, {
+            contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers: { "content-disposition": 'attachment; filename="employee-onboarding-template.xlsx"' },
           })
         }),
       )
