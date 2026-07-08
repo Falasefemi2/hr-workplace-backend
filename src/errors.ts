@@ -114,6 +114,17 @@ export class InvalidWorkflowOperationError extends Schema.TaggedErrorClass<Inval
   { httpApiStatus: 400 },
 ) {}
 
+export class AppraisalNotFoundError extends Schema.TaggedErrorClass<AppraisalNotFoundError>()(
+  "AppraisalNotFoundError",
+  {
+    appraisalId: Schema.String,
+  },
+) {}
+
+export class InvalidReviewerError extends Schema.TaggedErrorClass<InvalidReviewerError>()("InvalidReviewerError", {
+  reason: Schema.String,
+}) {}
+
 export type AuthError =
   | InvalidCredentialsError
   | EmailAlreadyExistsError
