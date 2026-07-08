@@ -1,10 +1,13 @@
 import { defineRelations } from "drizzle-orm"
 import {
   boolean,
+  date,
   index,
+  integer,
   numeric,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -19,6 +22,12 @@ export const userRoleEnum = pgEnum("user_role", ["owner", "admin", "hr_manager",
 export const employeeStatusEnum = pgEnum("employee_status", ["invited", "active", "deactivated"])
 
 export const genderEnum = pgEnum("gender", ["male", "female", "other", "prefer_not_to_say"])
+
+export const okrWorkflowEnum = pgEnum("okr_workflow", ["simplified", "flat"])
+
+export const objectiveStatusEnum = pgEnum("objective_status", ["draft", "published", "archived"])
+
+export const keyResultTargetTypeEnum = pgEnum("key_result_target_type", ["number", "percentage", "currency"])
 
 export const organizations = pgTable(
   "organizations",
@@ -207,6 +216,75 @@ export const payGroups = pgTable(
   ],
 )
 
+export const objectives = pgTable(
+  "objectives",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    workflow: okrWorkflowEnum("workflow").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description"),
+    periodYear: integer("period_year").notNull(),
+    periodQuarter: integer("period_quarter"), // 1-4, null = whole-year objective
+    deadline: date("deadline"),
+    status: objectiveStatusEnum("status").notNull().default("draft"),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("objectives_org_idx").on(t.organizationId),
+    index("objectives_org_period_idx").on(t.organizationId, t.periodYear, t.periodQuarter),
+  ],
+)
+
+export const objectiveDepartments = pgTable(
+  "objective_departments",
+  {
+    objectiveId: uuid("objective_id")
+      .notNull()
+      .references(() => objectives.id, { onDelete: "cascade" }),
+    departmentId: uuid("department_id")
+      .notNull()
+      .references(() => departments.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.objectiveId, t.departmentId] }),
+    index("objective_departments_department_idx").on(t.departmentId),
+  ],
+)
+
+export const keyResults = pgTable(
+  "key_results",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    objectiveId: uuid("objective_id")
+      .notNull()
+      .references(() => objectives.id, { onDelete: "cascade" }),
+    departmentId: uuid("department_id").references(() => departments.id, { onDelete: "set null" }),
+    title: varchar("title", { length: 500 }).notNull(),
+    targetType: keyResultTargetTypeEnum("target_type").notNull().default("number"),
+    targetValue: numeric("target_value", { precision: 14, scale: 2 }).notNull(),
+    currentValue: numeric("current_value", { precision: 14, scale: 2 }).notNull().default("0"),
+    unit: varchar("unit", { length: 20 }), // e.g. "%", "$", "units" — display-only
+    assignedEmployeeId: uuid("assigned_employee_id").references(() => employees.id, { onDelete: "set null" }),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("key_results_objective_idx").on(t.objectiveId),
+    index("key_results_department_idx").on(t.departmentId),
+    index("key_results_assigned_employee_idx").on(t.assignedEmployeeId),
+  ],
+)
+
 export const relations = defineRelations(
   {
     organizations,
@@ -217,6 +295,9 @@ export const relations = defineRelations(
     departments,
     employees,
     payGroups,
+    objectives,
+    objectiveDepartments,
+    keyResults,
   },
   (r) => ({
     organizations: {
@@ -257,11 +338,26 @@ export const relations = defineRelations(
       organization: r.one.organizations({ from: r.employees.organizationId, to: r.organizations.id }),
       department: r.one.departments({ from: r.employees.departmentId, to: r.departments.id }),
       user: r.one.users({ from: r.employees.userId, to: r.users.id }),
-      payGroup: r.one.payGroups({ from: r.employees.payGroupId, to: r.payGroups.id }), // <-- add this
+      payGroup: r.one.payGroups({ from: r.employees.payGroupId, to: r.payGroups.id }),
     },
     payGroups: {
       organization: r.one.organizations({ from: r.payGroups.organizationId, to: r.organizations.id }),
       employees: r.many.employees(),
+    },
+    objectives: {
+      organization: r.one.organizations({ from: r.objectives.organizationId, to: r.organizations.id }),
+      createdBy: r.one.users({ from: r.objectives.createdByUserId, to: r.users.id }),
+      departments: r.many.objectiveDepartments(),
+      keyResults: r.many.keyResults(),
+    },
+    objectiveDepartments: {
+      objective: r.one.objectives({ from: r.objectiveDepartments.objectiveId, to: r.objectives.id }),
+      department: r.one.departments({ from: r.objectiveDepartments.departmentId, to: r.departments.id }),
+    },
+    keyResults: {
+      objective: r.one.objectives({ from: r.keyResults.objectiveId, to: r.objectives.id }),
+      department: r.one.departments({ from: r.keyResults.departmentId, to: r.departments.id }),
+      assignedEmployee: r.one.employees({ from: r.keyResults.assignedEmployeeId, to: r.employees.id }),
     },
   }),
 )
@@ -291,3 +387,9 @@ export type EmployeeInvitationToken = typeof employeeInvitationTokens.$inferSele
 
 export type PayGroup = typeof payGroups.$inferSelect
 export type NewPayGroup = typeof payGroups.$inferInsert
+
+export type Objective = typeof objectives.$inferSelect
+export type NewObjective = typeof objectives.$inferInsert
+
+export type KeyResult = typeof keyResults.$inferSelect
+export type NewKeyResult = typeof keyResults.$inferInsert

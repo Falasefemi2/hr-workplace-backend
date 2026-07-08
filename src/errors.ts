@@ -90,6 +90,30 @@ export class PayGroupNameTakenError extends Schema.TaggedErrorClass<PayGroupName
   { httpApiStatus: 409 },
 ) {}
 
+export class ObjectiveNotFoundError extends Schema.TaggedErrorClass<ObjectiveNotFoundError>()(
+  "ObjectiveNotFoundError",
+  { objectiveId: Schema.String },
+  { httpApiStatus: 404 },
+) {}
+
+export class ObjectiveAlreadyPublishedError extends Schema.TaggedErrorClass<ObjectiveAlreadyPublishedError>()(
+  "ObjectiveAlreadyPublishedError",
+  { objectiveId: Schema.String },
+  { httpApiStatus: 409 },
+) {}
+
+export class NotDepartmentLeadError extends Schema.TaggedErrorClass<NotDepartmentLeadError>()(
+  "NotDepartmentLeadError",
+  { departmentId: Schema.String },
+  { httpApiStatus: 403 },
+) {}
+
+export class InvalidWorkflowOperationError extends Schema.TaggedErrorClass<InvalidWorkflowOperationError>()(
+  "InvalidWorkflowOperationError",
+  { message: Schema.String },
+  { httpApiStatus: 400 },
+) {}
+
 export type AuthError =
   | InvalidCredentialsError
   | EmailAlreadyExistsError

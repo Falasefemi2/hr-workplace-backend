@@ -10,12 +10,13 @@ import { PayGroupService } from "./src/domain/pay-group-service"
 import { AuthApiHandlers } from "./src/http/auth-api-handlers"
 import { AuthorizationLayer } from "./src/http/auth-middleware"
 import { DepartmentsApiHandlers, EmployeesApiHandlers } from "./src/http/employees-api-handlers"
-import { onboardingTemplateRoute } from "./src/http/onboarding-template-route"
+import { OkrsApiHandlers } from "./src/http/okrs-api-handlers"
 import { PayGroupsApiHandlers } from "./src/http/pay-groups-api-handlers"
 import { DepartmentRepository } from "./src/repositories/department-repository"
 import { EmployeeRepository } from "./src/repositories/employee-repository"
 import { OrganizationRepository } from "./src/repositories/organization-repository"
 import { PayGroupRepository } from "./src/repositories/pay-group-repository"
+import { OkrRepository } from "./src/repositories/skr-repository"
 import { UserRepository } from "./src/repositories/user-repository"
 import { AppLogger } from "./src/services/app-logger"
 import { EmailService } from "./src/services/email-service"
@@ -42,6 +43,7 @@ const RepositoriesLive = Layer.mergeAll(
   DepartmentRepository.layer,
   EmployeeRepository.layer,
   PayGroupRepository.layer,
+  OkrRepository.layer,
 ).pipe(Layer.provide(InfraLive))
 
 const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
@@ -50,17 +52,14 @@ const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pi
   Layer.provide(EmployeesApiHandlers),
   Layer.provide(PayGroupsApiHandlers),
   Layer.provide(AuthorizationLayer),
+  Layer.provide(OkrsApiHandlers),
 )
 
 const DocsRoute = HttpApiScalar.layer(Api, { path: "/docs" })
 
-const OnboardingLayer = HttpRouter.addAll([onboardingTemplateRoute])
+// const OnboardingLayer = HttpRouter.addAll([onboardingTemplateRoute])
 
-const AllRoutes = Layer.mergeAll(ApiRoutes as any, DocsRoute as any, OnboardingLayer as any) as unknown as Layer.Layer<
-  never,
-  never,
-  any
->
+const AllRoutes = Layer.mergeAll(ApiRoutes as any, DocsRoute as any) as unknown as Layer.Layer<never, never, any>
 
 const HttpServerLayer = HttpRouter.serve(AllRoutes, {
   middleware: (app) =>

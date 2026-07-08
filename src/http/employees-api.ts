@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { HttpApiEndpoint, HttpApiGroup } from "effect/unstable/httpapi"
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/unstable/httpapi"
 import { DepartmentNameTakenError, DepartmentNotFoundError, ForbiddenError } from "../errors"
 import { Authorization } from "./auth-middleware"
 
@@ -95,6 +95,12 @@ export class EmployeesApiGroup extends HttpApiGroup.make("employees")
         limit: Schema.optional(Schema.String),
       }),
       success: PaginatedEmployeesSchema,
+      error: [ForbiddenError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("onboardingTemplate", "/employees/onboarding/template", {
+      success: Schema.Uint8Array.pipe(HttpApiSchema.asUint8Array()),
       error: [ForbiddenError],
     }),
   )
