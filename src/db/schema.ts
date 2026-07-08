@@ -29,6 +29,12 @@ export const objectiveStatusEnum = pgEnum("objective_status", ["draft", "publish
 
 export const keyResultTargetTypeEnum = pgEnum("key_result_target_type", ["number", "percentage", "currency"])
 
+export const appraisalPeriodEnum = pgEnum("appraisal_period", ["quarterly", "half_yearly", "annually"])
+
+export const appraisalReviewerTypeEnum = pgEnum("appraisal_reviewer_type", ["department_lead", "email_invite"])
+
+export const appraisalStatusEnum = pgEnum("appraisal_status", ["not_started", "in_progress", "completed"])
+
 export const organizations = pgTable(
   "organizations",
   {
@@ -270,7 +276,7 @@ export const keyResults = pgTable(
     targetType: keyResultTargetTypeEnum("target_type").notNull().default("number"),
     targetValue: numeric("target_value", { precision: 14, scale: 2 }).notNull(),
     currentValue: numeric("current_value", { precision: 14, scale: 2 }).notNull().default("0"),
-    unit: varchar("unit", { length: 20 }), // e.g. "%", "$", "units" — display-only
+    unit: varchar("unit", { length: 20 }),
     assignedEmployeeId: uuid("assigned_employee_id").references(() => employees.id, { onDelete: "set null" }),
     createdByUserId: uuid("created_by_user_id")
       .notNull()
@@ -282,6 +288,50 @@ export const keyResults = pgTable(
     index("key_results_objective_idx").on(t.objectiveId),
     index("key_results_department_idx").on(t.departmentId),
     index("key_results_assigned_employee_idx").on(t.assignedEmployeeId),
+  ],
+)
+
+export const appraisals = pgTable(
+  "appraisals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    period: appraisalPeriodEnum("period").notNull(),
+    reviewerType: appraisalReviewerTypeEnum("reviewer_type").notNull(),
+    reviewerEmployeeId: uuid("reviewer_employee_id").references(() => employees.id, { onDelete: "set null" }),
+    reviewerName: varchar("reviewer_name", { length: 255 }).notNull(),
+    reviewerEmail: varchar("reviewer_email", { length: 320 }),
+    startDate: date("start_date").notNull(),
+    dueDate: date("due_date").notNull(),
+    status: appraisalStatusEnum("status").notNull().default("not_started"),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("appraisals_org_idx").on(t.organizationId),
+    index("appraisals_org_status_idx").on(t.organizationId, t.status),
+    index("appraisals_reviewer_employee_idx").on(t.reviewerEmployeeId),
+  ],
+)
+
+export const appraisalEmployees = pgTable(
+  "appraisal_employees",
+  {
+    appraisalId: uuid("appraisal_id")
+      .notNull()
+      .references(() => appraisals.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.appraisalId, t.employeeId] }),
+    index("appraisal_employees_employee_idx").on(t.employeeId),
   ],
 )
 
@@ -298,6 +348,8 @@ export const relations = defineRelations(
     objectives,
     objectiveDepartments,
     keyResults,
+    appraisals,
+    appraisalEmployees,
   },
   (r) => ({
     organizations: {
@@ -359,6 +411,16 @@ export const relations = defineRelations(
       department: r.one.departments({ from: r.keyResults.departmentId, to: r.departments.id }),
       assignedEmployee: r.one.employees({ from: r.keyResults.assignedEmployeeId, to: r.employees.id }),
     },
+    appraisals: {
+      organization: r.one.organizations({ from: r.appraisals.organizationId, to: r.organizations.id }),
+      reviewerEmployee: r.one.employees({ from: r.appraisals.reviewerEmployeeId, to: r.employees.id }),
+      createdBy: r.one.users({ from: r.appraisals.createdByUserId, to: r.users.id }),
+      employees: r.many.appraisalEmployees(),
+    },
+    appraisalEmployees: {
+      appraisal: r.one.appraisals({ from: r.appraisalEmployees.appraisalId, to: r.appraisals.id }),
+      employee: r.one.employees({ from: r.appraisalEmployees.employeeId, to: r.employees.id }),
+    },
   }),
 )
 
@@ -393,3 +455,6 @@ export type NewObjective = typeof objectives.$inferInsert
 
 export type KeyResult = typeof keyResults.$inferSelect
 export type NewKeyResult = typeof keyResults.$inferInsert
+
+export type Appraisal = typeof appraisals.$inferSelect
+export type NewAppraisal = typeof appraisals.$inferInsert

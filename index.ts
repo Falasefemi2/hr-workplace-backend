@@ -4,14 +4,17 @@ import { HttpMiddleware, HttpRouter } from "effect/unstable/http"
 import { HttpApiBuilder, HttpApiScalar } from "effect/unstable/httpapi"
 import { Api } from "./src/api"
 import { PgDatabaseLive } from "./src/db"
+import { AppraisalService } from "./src/domain/appraisal-service"
 import { DepartmentService } from "./src/domain/department-service"
 import { EmployeeService } from "./src/domain/employee-service"
 import { PayGroupService } from "./src/domain/pay-group-service"
+import { AppraisalsApiHandlers } from "./src/http/appraisal-handlers"
 import { AuthApiHandlers } from "./src/http/auth-api-handlers"
 import { AuthorizationLayer } from "./src/http/auth-middleware"
 import { DepartmentsApiHandlers, EmployeesApiHandlers } from "./src/http/employees-api-handlers"
 import { OkrsApiHandlers } from "./src/http/okrs-api-handlers"
 import { PayGroupsApiHandlers } from "./src/http/pay-groups-api-handlers"
+import { AppraisalRepository } from "./src/repositories/appraisal-repository"
 import { DepartmentRepository } from "./src/repositories/department-repository"
 import { EmployeeRepository } from "./src/repositories/employee-repository"
 import { OrganizationRepository } from "./src/repositories/organization-repository"
@@ -35,6 +38,7 @@ const ServicesLive = Layer.mergeAll(
   EmployeeService.layer,
   DepartmentService.layer,
   PayGroupService.layer,
+  AppraisalService.layer,
 ).pipe(Layer.provide(InfraLive))
 
 const RepositoriesLive = Layer.mergeAll(
@@ -44,6 +48,7 @@ const RepositoriesLive = Layer.mergeAll(
   EmployeeRepository.layer,
   PayGroupRepository.layer,
   OkrRepository.layer,
+  AppraisalRepository.layer,
 ).pipe(Layer.provide(InfraLive))
 
 const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
@@ -53,6 +58,7 @@ const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pi
   Layer.provide(PayGroupsApiHandlers),
   Layer.provide(AuthorizationLayer),
   Layer.provide(OkrsApiHandlers),
+  Layer.provide(AppraisalsApiHandlers),
 )
 
 const DocsRoute = HttpApiScalar.layer(Api, { path: "/docs" })

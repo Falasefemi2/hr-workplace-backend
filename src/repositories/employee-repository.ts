@@ -94,7 +94,24 @@ export class EmployeeRepository extends Context.Service<EmployeeRepository>()("h
       )
     }
 
-    return { createMany, findExistingEmails, departmentExists, storeInvitationToken, listByOrg } as const
+    const employeeExists = (organizationId: string, employeeId: string) =>
+      db
+        .select({ id: employees.id })
+        .from(employees)
+        .where(and(eq(employees.id, employeeId), eq(employees.organizationId, organizationId)))
+        .pipe(
+          Effect.map((rows) => rows.length > 0),
+          Effect.mapError(toDbError),
+        )
+
+    return {
+      createMany,
+      findExistingEmails,
+      departmentExists,
+      employeeExists,
+      storeInvitationToken,
+      listByOrg,
+    } as const
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)
